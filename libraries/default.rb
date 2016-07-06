@@ -60,6 +60,18 @@ module ChefCookbook
       def certificate_private_key_data
         @data['private_key']
       end
+
+      def scts_data
+        @data.fetch('scts', [])
+      end
+
+      def scts_dir
+        ::File.join base_dir, 'scts'
+      end
+
+      def hpkp_pins
+        @data.fetch('hpkp_pins', [])
+      end
     end
 
     def certificate_entry(domain)
@@ -91,20 +103,6 @@ module ChefCookbook
         )
       else
         CertificateEntry.new @node, domain, data
-      end
-    end
-
-    module Helper
-      def certificate_entry(domain)
-        ChefCookbook::TLS.new(node).certificate_entry domain
-      end
-
-      def tls_certificate_path(domain)
-        certificate_entry(domain).certificate_path
-      end
-
-      def tls_certificate_private_key_path(domain)
-        certificate_entry(domain).certificate_private_key_path
       end
     end
   end
