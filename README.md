@@ -4,14 +4,16 @@ Chef cookbook to deploy SSL/TLS certificates on the system. Data is stored in an
 All files will be placed under the directory specified in attribute `node['tls']['base_dir']` (by default `/etc/chef-tls`).
 
 The default recipe `tls::default` creates base directory to store files. Certificate deployment is made by using `tls_certificate` resource. For example,
-```ruby
+
+``` ruby
 tls_certificate 'www.domain.tld' do
   action :deploy
 end
 ```
 
 Encrypted data bag format is as follows:
-```json
+
+``` json
 {
   "id": "development",
   "certificates": [
@@ -43,7 +45,8 @@ Encrypted data bag format is as follows:
 ```
 
 Different software (e.g. Nginx, Postfix) will require paths to deployed certificates, private keys and SCTs. To obtain these paths, you should make use of `ChefCookbook::TLS` helper in your recipes. Below is an example:
-```ruby
+
+``` ruby
 tls_item = ChefCookbook::TLS.new(node).certificate_entry 'www.domain.tld'
 
 tls_item.certificate_path  # Get path to the certificate

@@ -50,7 +50,7 @@ module ChefCookbook
       end
 
       def certificate_data
-        @data['chain'].join
+        @data['chain'].join "\n"
       end
 
       def certificate_private_key_path
@@ -62,7 +62,7 @@ module ChefCookbook
       end
 
       def scts_data
-        @data.fetch('scts', [])
+        @data.fetch('scts', {})
       end
 
       def scts_dir

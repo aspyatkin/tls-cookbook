@@ -48,7 +48,7 @@ action :deploy do
       action :create
     end
 
-    actual_item.scts_data do |name, data|
+    actual_item.scts_data.each do |name, data|
       sct_path = ::File.join actual_item.scts_dir, "#{name}.sct"
 
       file sct_path do
