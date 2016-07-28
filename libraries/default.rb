@@ -105,5 +105,78 @@ module ChefCookbook
         CertificateEntry.new @node, domain, data
       end
     end
+
+    class RootCertificateEntry
+      def initialize(node, name, data)
+        @node = node
+        @_name = name
+        @_data = data
+
+        if @node['tls']['local_certificate_store_dir'].nil? ||
+           @node['tls']['system_certificate_store_dir'].nil?
+          ::Chef::Application.fatal!(
+            "Unsupported system <#{@node['platform']}>!",
+            99
+          )
+        end
+      end
+
+      def name
+        @_name
+      end
+
+      def certificate_path
+        ::File.join @node['tls']['local_certificate_store_dir'], "#{name}.crt"
+      end
+
+      def certificate_data
+        @_data
+      end
+    end
+
+    def ca_bundle_path
+      case @node['platform']
+      when 'ubuntu'
+        ::File.join(
+          @node['tls']['system_certificate_store_dir'],
+          'ca-certificates.crt'
+        )
+      else
+        ::Chef::Application.fatal!(
+          "Unsupported system <#{@node['platform']}>!",
+          99
+        )
+      end
+    end
+
+    def ca_certificate_entry(name)
+      tls_data_bag_item = nil
+      begin
+        tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
+          @node['tls']['data_bag_name'],
+          @node.chef_environment
+        )
+      rescue
+      end
+
+      tls_ca_certificates_list = \
+        if tls_data_bag_item.nil?
+          []
+        else
+          tls_data_bag_item.to_hash.fetch('ca_certificates', {})
+        end
+
+      data = tls_ca_certificates_list[name]
+
+      if data.nil?
+        ::Chef::Application.fatal!(
+          "Couldn't find TLS CA certificate item <#{name}> in data "\
+          "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
+          99
+        )
+      else
+        RootCertificateEntry.new @node, name, data
+      end
+    end
   end
 end

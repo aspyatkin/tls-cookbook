@@ -1,6 +1,5 @@
 require 'base64'
 
-id = 'tls'
 resource_name :tls_certificate
 
 property :domain, String, name_property: true
@@ -15,6 +14,14 @@ action :deploy do
 
   actual_item = helper.certificate_entry domain
 
+  directory node['tls']['base_dir'] do
+    owner 'root'
+    group node['root_group']
+    mode 0755
+    recursive true
+    action :create
+  end
+
   directory actual_item.base_dir do
     owner new_resource.owner
     group new_resource.group
@@ -28,6 +35,7 @@ action :deploy do
     group new_resource.group
     mode 0600
     content actual_item.certificate_data
+    sensitive true
     action :create
   end
 
@@ -36,6 +44,7 @@ action :deploy do
     group new_resource.group
     mode 0600
     content actual_item.certificate_private_key_data
+    sensitive true
     action :create
   end
 
@@ -56,6 +65,7 @@ action :deploy do
         group new_resource.group
         mode 0644
         content ::Base64.decode64 data
+        sensitive true
         action :create
       end
     end
