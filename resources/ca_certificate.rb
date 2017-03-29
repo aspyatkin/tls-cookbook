@@ -5,9 +5,9 @@ property :name, String, name_property: true
 default_action :install
 
 action :install do
-  helper = ::ChefCookbook::TLS.new node
+  helper = ::ChefCookbook::TLS.new(node)
 
-  actual_item = helper.ca_certificate_entry new_resource.name
+  actual_item = helper.ca_certificate_entry(new_resource.name)
 
   file actual_item.certificate_path do
     owner 'root'
@@ -30,7 +30,7 @@ action :install do
 end
 
 action :uninstall do
-  helper = ::ChefCookbook::TLS.new node
+  helper = ::ChefCookbook::TLS.new(node)
 
   actual_item = helper.ca_certificate_entry new_resource.name
 

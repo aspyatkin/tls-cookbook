@@ -6,13 +6,14 @@ property :domain, String, name_property: true
 property :owner, String, default: 'root'
 property :group, String, default: node['root_group']
 property :scts, [TrueClass, FalseClass], default: true
+property :key_type, [Symbol, nil], default: nil
 
 default_action :deploy
 
 action :deploy do
-  helper = ::ChefCookbook::TLS.new node
+  helper = ::ChefCookbook::TLS.new(node)
 
-  actual_item = helper.certificate_entry domain
+  actual_item = helper.certificate_entry(domain, new_resource.key_type)
 
   directory node['tls']['base_dir'] do
     owner 'root'
@@ -58,13 +59,13 @@ action :deploy do
     end
 
     actual_item.scts_data.each do |name, data|
-      sct_path = ::File.join actual_item.scts_dir, "#{name}.sct"
+      sct_path = ::File.join(actual_item.scts_dir, "#{name}.sct")
 
       file sct_path do
         owner new_resource.owner
         group new_resource.group
         mode 0644
-        content ::Base64.decode64 data
+        content ::Base64.decode64(data)
         sensitive true
         action :create
       end

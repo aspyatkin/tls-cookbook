@@ -1,3 +1,5 @@
+require 'openssl'
+
 module ChefCookbook
   class TLS
     def initialize(node)
@@ -42,19 +44,19 @@ module ChefCookbook
       end
 
       def base_dir
-        ::File.join @node['tls']['base_dir'], name
+        ::File.join(@node['tls']['base_dir'], name)
       end
 
       def certificate_path
-        ::File.join base_dir, 'server.crt'
+        ::File.join(base_dir, 'server.crt')
       end
 
       def certificate_data
-        @data['chain'].join "\n"
+        @data['chain'].join("\n")
       end
 
       def certificate_private_key_path
-        ::File.join base_dir, 'server.key'
+        ::File.join(base_dir, 'server.key')
       end
 
       def certificate_private_key_data
@@ -66,7 +68,7 @@ module ChefCookbook
       end
 
       def scts_dir
-        ::File.join base_dir, 'scts'
+        ::File.join(base_dir, 'scts')
       end
 
       def hpkp_pins
@@ -74,7 +76,7 @@ module ChefCookbook
       end
     end
 
-    def certificate_entry(domain)
+    def certificate_entry(domain, key_type = nil)
       tls_data_bag_item = nil
       begin
         tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
@@ -92,7 +94,32 @@ module ChefCookbook
         end
 
       data = tls_certificates_list.find do |item|
-        item.fetch('domains', []).include? domain
+        match_domain = item.fetch('domains', []).include?(domain)
+
+        if match_domain
+          if key_type.nil?
+            next true
+          else
+            begin
+              pk = ::OpenSSL::PKey.read(item.fetch('private_key', ''))
+              if key_type == :rsa && pk.class == ::OpenSSL::PKey::RSA
+                next true
+              elsif key_type == :ec && pk.class == ::OpenSSL::PKey::EC
+                next true
+              else
+                next false
+              end
+            rescue ::OpenSSL::PKey::PKeyError
+              ::Chef::Application.fatal!(
+                "Couldn't find valid private key in certificate item for domain <#{domain}> in data "\
+                "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
+                99
+              )
+            end
+          end
+        else
+          next false
+        end
       end
 
       if data.nil?
@@ -102,8 +129,16 @@ module ChefCookbook
           99
         )
       else
-        CertificateEntry.new @node, domain, data
+        CertificateEntry.new(@node, domain, data)
       end
+    end
+
+    def rsa_certificate_entry(domain)
+      certificate_entry(domain, :rsa)
+    end
+
+    def ec_certificate_entry(domain)
+      certificate_entry(domain, :ec)
     end
 
     class RootCertificateEntry
@@ -126,7 +161,7 @@ module ChefCookbook
       end
 
       def certificate_path
-        ::File.join @node['tls']['local_certificate_store_dir'], "#{name}.crt"
+        ::File.join(@node['tls']['local_certificate_store_dir'], "#{name}.crt")
       end
 
       def certificate_data
@@ -175,7 +210,7 @@ module ChefCookbook
           99
         )
       else
-        RootCertificateEntry.new @node, name, data
+        RootCertificateEntry.new(@node, name, data)
       end
     end
   end
