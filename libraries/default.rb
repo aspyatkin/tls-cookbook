@@ -7,13 +7,13 @@ module ChefCookbook
     end
 
     class CertificateEntry
-      def initialize(node, domain, data)
+      def initialize(node, domains, data)
         @node = node
         @data = data
 
         if @data.fetch('name', nil).nil?
           ::Chef::Log.warn(
-            "No name specified in TLS certificate item for domain <#{domain}> in "\
+            "No name specified in TLS certificate item for domains <#{domains.join(' ')}> in "\
             "data bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>. "\
             "Using <#{@data['domains'][0]}> as a name."
           )
@@ -76,7 +76,11 @@ module ChefCookbook
       end
     end
 
-    def certificate_entry(domain, key_type = nil)
+    def subset?(a, b)
+      a.all? { |x| b.include?(x) }
+    end
+
+    def certificate_entry(domains, key_type = nil)
       tls_data_bag_item = nil
       begin
         tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
@@ -93,8 +97,12 @@ module ChefCookbook
           tls_data_bag_item.to_hash.fetch('certificates', [])
         end
 
+      unless domains.is_a?(Array)
+        domains = [domains]
+      end
+
       data = tls_certificates_list.find do |item|
-        match_domain = item.fetch('domains', []).include?(domain)
+        match_domain = subset?(domains, item.fetch('domains', []))
 
         if match_domain
           if key_type.nil?
@@ -111,7 +119,7 @@ module ChefCookbook
               end
             rescue ::OpenSSL::PKey::PKeyError
               ::Chef::Application.fatal!(
-                "Couldn't find valid private key in certificate item for domain <#{domain}> in data "\
+                "Couldn't find valid private key in certificate item for domains <#{domains.join(' ')}> in data "\
                 "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
                 99
               )
@@ -124,21 +132,21 @@ module ChefCookbook
 
       if data.nil?
         ::Chef::Application.fatal!(
-          "Couldn't find TLS certificate item for domain <#{domain}> in data "\
+          "Couldn't find TLS certificate item for domains <#{domains.join(' ')}> in data "\
           "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
           99
         )
       else
-        CertificateEntry.new(@node, domain, data)
+        CertificateEntry.new(@node, domains, data)
       end
     end
 
-    def rsa_certificate_entry(domain)
-      certificate_entry(domain, :rsa)
+    def rsa_certificate_entry(domains)
+      certificate_entry(domains, :rsa)
     end
 
-    def ec_certificate_entry(domain)
-      certificate_entry(domain, :ec)
+    def ec_certificate_entry(domains)
+      certificate_entry(domains, :ec)
     end
 
     class RootCertificateEntry
