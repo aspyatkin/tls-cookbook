@@ -5,7 +5,6 @@ resource_name :tls_certificate
 property :domain, String, name_property: true
 property :owner, String, default: 'root'
 property :group, String, default: node['root_group']
-property :scts, [TrueClass, FalseClass], default: true
 property :key_type, [Symbol, nil], default: nil
 
 default_action :deploy
@@ -49,7 +48,7 @@ action :deploy do
     action :create
   end
 
-  if new_resource.scts && !actual_item.scts_data.empty?
+  if actual_item.has_scts?
     directory actual_item.scts_dir do
       owner new_resource.owner
       group new_resource.group
@@ -69,6 +68,11 @@ action :deploy do
         sensitive true
         action :create
       end
+    end
+  else
+    directory actual_item.scts_dir do
+      recursive true
+      action :delete
     end
   end
 end

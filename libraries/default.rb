@@ -67,6 +67,10 @@ module ChefCookbook
         @data.fetch('scts', {})
       end
 
+      def has_scts?
+        !scts_data.empty?
+      end
+
       def scts_dir
         ::File.join(base_dir, 'scts')
       end
