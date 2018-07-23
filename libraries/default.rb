@@ -80,8 +80,16 @@ module ChefCookbook
       end
     end
 
-    def subset?(a, b)
-      a.all? { |x| b.include?(x) }
+    def _wildcard?(s)
+      s.start_with?('*.')
+    end
+
+    def _wilcardize(s)
+      s.split('.').each_with_index.map { |x, ndx| (ndx == 0) ? '*' : x }.join('.')
+    end
+
+    def _subset?(a, b)
+      a.all? { |x| b.include?(x) || (!_wildcard?(x) && b.include?(_wilcardize(x))) }
     end
 
     def certificate_entry(domains, key_type = nil)
@@ -106,7 +114,7 @@ module ChefCookbook
       end
 
       data = tls_certificates_list.find do |item|
-        match_domain = subset?(domains, item.fetch('domains', []))
+        match_domain = _subset?(domains, item.fetch('domains', []))
 
         if match_domain
           if key_type.nil?
