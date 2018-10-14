@@ -12,7 +12,7 @@ default_action :deploy
 action :deploy do
   helper = ::ChefCookbook::TLS.new(node)
 
-  actual_item = helper.certificate_entry(domain, new_resource.key_type)
+  actual_item = helper.certificate_entry(new_resource.domain, new_resource.key_type)
 
   directory node['tls']['base_dir'] do
     owner 'root'
