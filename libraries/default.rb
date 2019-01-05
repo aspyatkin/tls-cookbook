@@ -92,7 +92,7 @@ module ChefCookbook
       a.all? { |x| b.include?(x) || (!_wildcard?(x) && b.include?(_wilcardize(x))) }
     end
 
-    def certificate_entry(domains, key_type = nil)
+    def _find_certificate_entry(domains, key_type)
       tls_data_bag_item = nil
       begin
         tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
@@ -113,7 +113,7 @@ module ChefCookbook
         domains = [domains]
       end
 
-      data = tls_certificates_list.find do |item|
+      tls_certificates_list.find do |item|
         match_domain = _subset?(domains, item.fetch('domains', []))
 
         if match_domain
@@ -141,6 +141,10 @@ module ChefCookbook
           next false
         end
       end
+    end
+
+    def certificate_entry(domains, key_type = nil)
+      data = _find_certificate_entry(domains, key_type)
 
       if data.nil?
         ::Chef::Application.fatal!(
@@ -155,6 +159,10 @@ module ChefCookbook
 
     def rsa_certificate_entry(domains)
       certificate_entry(domains, :rsa)
+    end
+
+    def has_ec_certificate?(domains)
+      !_find_certificate_entry(domains, :ec).nil?
     end
 
     def ec_certificate_entry(domains)
