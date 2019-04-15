@@ -29,16 +29,7 @@ Root certificate files will be placed under system directories.
         "-----BEGIN CERTIFICATE-----\nMIIFNjCC........4PcGNXXA\n-----END CERTIFICATE-----",
         "-----BEGIN CERTIFICATE-----\nMIIEkjCC........NFu0Qg==\n-----END CERTIFICATE-----"
       ],
-      "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIB........8tt8JA==\n-----END RSA PRIVATE KEY-----", // Certificate private key (PEM encoded, new lines should be escaped)
-      "hpkp_pins": [ // HPKP pins (base64 encoded)
-        "wZgbeR6b........",
-        "bDSe0744........"
-      ],
-      "scts": { // SCTs (base64 encoded)
-        "google_aviator": "AGj2mPgf........3nYNtNU=",
-        "google_pilot": "AKS5CZC0........RnySxdE=",
-        "google_rocketeer": "AO5Lvbd1........bdC+zlI="
-      }
+      "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIB........8tt8JA==\n-----END RSA PRIVATE KEY-----" // Certificate private key (PEM encoded, new lines should be escaped)
     },
     {
       // other entries
@@ -59,15 +50,13 @@ tls_certificate 'www.domain.tld' do
 end
 ```
 
-Different software (e.g. Nginx, Postfix) will require paths to deployed certificates, private keys and SCTs. To obtain these paths, `::ChefCookbook::TLS` helper should be used. Below is the example:
+Different software (e.g. Nginx, Postfix) will require paths to deployed certificates and private keys. To obtain these paths, `::ChefCookbook::TLS` helper should be used. Below is the example:
 
 ``` ruby
 tls_item = ::ChefCookbook::TLS.new(node).certificate_entry('www.domain.tld')
 
 tls_item.certificate_path  # Get path to the certificate
 tls_item.certificate_private_key_path  # Get path to the certificate's private key
-tls_item.scts_dir  # Get path to the folder with deployed SCTs
-tls_item.hpkp_pins  # Get array of HPKP pins
 ```
 
 If there are several certificates for the same set of domains (e.g. RSA and ECDSA ones), both `tls_certificate` resource and `certificate_entry` helper method will operate with the first item found in the data bag. To pick out the exact certificate, you should use either `tls_rsa_certificate` resource / `rsa_certificate_entry` helper method or `tls_ec_certificate` resource / `ec_certificate_entry` helper method.

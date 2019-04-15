@@ -17,7 +17,7 @@ action :deploy do
   directory node['tls']['base_dir'] do
     owner 'root'
     group node['root_group']
-    mode 0755
+    mode 0o755
     recursive true
     action :create
   end
@@ -25,7 +25,7 @@ action :deploy do
   directory actual_item.base_dir do
     owner new_resource.owner
     group new_resource.group
-    mode 0755
+    mode 0o755
     recursive true
     action :create
   end
@@ -33,7 +33,7 @@ action :deploy do
   file actual_item.certificate_path do
     owner new_resource.owner
     group new_resource.group
-    mode 0600
+    mode 0o600
     content actual_item.certificate_data
     sensitive true
     action :create
@@ -42,37 +42,9 @@ action :deploy do
   file actual_item.certificate_private_key_path do
     owner new_resource.owner
     group new_resource.group
-    mode 0600
+    mode 0o600
     content actual_item.certificate_private_key_data
     sensitive true
     action :create
-  end
-
-  if actual_item.has_scts?
-    directory actual_item.scts_dir do
-      owner new_resource.owner
-      group new_resource.group
-      mode 0755
-      recursive true
-      action :create
-    end
-
-    actual_item.scts_data.each do |name, data|
-      sct_path = ::File.join(actual_item.scts_dir, "#{name}.sct")
-
-      file sct_path do
-        owner new_resource.owner
-        group new_resource.group
-        mode 0644
-        content ::Base64.decode64(data)
-        sensitive true
-        action :create
-      end
-    end
-  else
-    directory actual_item.scts_dir do
-      recursive true
-      action :delete
-    end
   end
 end

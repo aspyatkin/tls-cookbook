@@ -1,4 +1,5 @@
 require 'openssl'
+require 'zlib'
 
 module ChefCookbook
   class TLS
@@ -55,6 +56,10 @@ module ChefCookbook
         @data['chain'].join("\n")
       end
 
+      def certificate_checksum
+        ::Zlib.crc32(certificate_data)
+      end
+
       def certificate_private_key_path
         ::File.join(base_dir, 'server.key')
       end
@@ -63,20 +68,8 @@ module ChefCookbook
         @data['private_key']
       end
 
-      def scts_data
-        @data.fetch('scts', {})
-      end
-
-      def has_scts?
-        !scts_data.empty?
-      end
-
-      def scts_dir
-        ::File.join(base_dir, 'scts')
-      end
-
-      def hpkp_pins
-        @data.fetch('hpkp_pins', [])
+      def certificate_private_key_checksum
+        ::Zlib.crc32(certificate_private_key_data)
       end
     end
 

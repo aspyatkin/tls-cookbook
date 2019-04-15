@@ -12,7 +12,7 @@ action :install do
   file actual_item.certificate_path do
     owner 'root'
     group node['root_group']
-    mode 0644
+    mode 0o644
     content actual_item.certificate_data
     sensitive true
     action :create
