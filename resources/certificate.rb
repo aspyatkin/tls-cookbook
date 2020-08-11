@@ -33,7 +33,7 @@ action :deploy do
   file actual_item.certificate_path do
     owner new_resource.owner
     group new_resource.group
-    mode 0o600
+    mode 0o644
     content actual_item.certificate_data
     sensitive true
     action :create
