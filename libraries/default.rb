@@ -3,8 +3,9 @@ require 'zlib'
 
 module ChefCookbook
   class TLS
-    def initialize(node)
+    def initialize(node, vlt_provider: nil)
       @node = node
+      @vlt_client = vlt_provider.call
     end
 
     class CertificateEntry
@@ -26,7 +27,7 @@ module ChefCookbook
             'No certificates are specified for TLS certificate item '\
             "<#{name}> in data bag "\
             "<#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
-            99
+            1
           )
         end
 
@@ -35,7 +36,7 @@ module ChefCookbook
             'No private key is specified for TLS certificate item '\
             "<#{name}> in data bag "\
             "<#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
-            99
+            1
           )
         end
       end
@@ -86,24 +87,37 @@ module ChefCookbook
     end
 
     def _find_certificate_entry(domains, key_type)
-      tls_data_bag_item = nil
-      begin
-        tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
-          @node['tls']['data_bag_name'],
-          @node.chef_environment
-        )
-      rescue
-      end
+      tls_certificates_list = []
 
-      tls_certificates_list = \
-        if tls_data_bag_item.nil?
-          []
-        else
-          tls_data_bag_item.to_hash.fetch('certificates', [])
+      if @vlt_client.nil?
+        tls_data_bag_item = nil
+        begin
+          tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
+            @node['tls']['data_bag_name'],
+            @node.chef_environment
+          )
+        rescue
         end
 
-      unless domains.is_a?(Array)
-        domains = [domains]
+        tls_certificates_list = \
+          if tls_data_bag_item.nil?
+            []
+          else
+            tls_data_bag_item.to_hash.fetch('certificates', [])
+          end
+      else
+        names = @vlt_client.list('certificate')
+        names.each do |_name|
+          item = @vlt_client.read("certificate/#{_name}", raise_err: false)
+          unless item.nil?
+            tls_certificates_list << {
+              'name' => _name,
+              'domains' => item[:domains],
+              'chain' => item[:chain],
+              'private_key' => item[:private_key]
+            }
+          end
+        end
       end
 
       tls_certificates_list.find do |item|
@@ -123,11 +137,18 @@ module ChefCookbook
                 next false
               end
             rescue ::OpenSSL::PKey::PKeyError
-              ::Chef::Application.fatal!(
-                "Couldn't find valid private key in certificate item for domains <#{domains.join(' ')}> in data "\
-                "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
-                99
-              )
+              if @vlt_client.nil?
+                ::Chef::Application.fatal!(
+                  "Couldn't find valid private key in certificate item for domains <#{domains.join(' ')}> in data "\
+                  "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>",
+                  1
+                )
+              else
+                ::Chef::Application.fatal!(
+                  "Couldn't find valid private key for domains <#{domains.join(' ')}> in Vault service",
+                  1
+                )
+              end
             end
           end
         else
@@ -136,15 +157,24 @@ module ChefCookbook
       end
     end
 
-    def certificate_entry(domains, key_type = nil)
+    def certificate_entry(domains, key_type)
+      unless domains.is_a?(Array)
+        domains = [domains]
+      end
       data = _find_certificate_entry(domains, key_type)
-
       if data.nil?
-        ::Chef::Application.fatal!(
-          "Couldn't find TLS certificate item for domains <#{domains.join(' ')}> in data "\
-          "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
-          99
-        )
+        if @vlt_client.nil?
+          ::Chef::Application.fatal!(
+            "Couldn't find TLS certificate item for domains <#{domains.join(' ')}> in data "\
+            "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>",
+            1
+          )
+        else
+          ::Chef::Application.fatal!(
+            "Couldn't find TLS certificate item for domains <#{domains.join(' ')}> in Vault service",
+            1
+          )
+        end
       else
         CertificateEntry.new(@node, domains, data)
       end
@@ -155,6 +185,9 @@ module ChefCookbook
     end
 
     def has_ec_certificate?(domains)
+      unless domains.is_a?(Array)
+        domains = [domains]
+      end
       !_find_certificate_entry(domains, :ec).nil?
     end
 
@@ -205,33 +238,46 @@ module ChefCookbook
       end
     end
 
-    def ca_certificate_entry(name)
-      tls_data_bag_item = nil
-      begin
-        tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
-          @node['tls']['data_bag_name'],
-          @node.chef_environment
-        )
-      rescue
-      end
+    def ca_certificate_entry(ca_name)
+      data = nil
 
-      tls_ca_certificates_list = \
-        if tls_data_bag_item.nil?
-          []
-        else
-          tls_data_bag_item.to_hash.fetch('ca_certificates', {})
+      if @vlt_client.nil?
+        tls_data_bag_item = nil
+        begin
+          tls_data_bag_item = ::Chef::EncryptedDataBagItem.load(
+            @node['tls']['data_bag_name'],
+            @node.chef_environment
+          )
+        rescue
         end
 
-      data = tls_ca_certificates_list[name]
+        tls_ca_certificates_list = \
+          if tls_data_bag_item.nil?
+            []
+          else
+            tls_data_bag_item.to_hash.fetch('ca_certificates', [])
+          end
+
+        data = tls_ca_certificates_list[ca_name]
+      else
+        data = @vlt_client.read("ca_certificate/#{ca_name}", key: 'data', raise_err: false)
+      end
 
       if data.nil?
-        ::Chef::Application.fatal!(
-          "Couldn't find TLS CA certificate item <#{name}> in data "\
-          "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>!",
-          99
-        )
+        if @vlt_client.nil?
+          ::Chef::Application.fatal!(
+            "Couldn't find TLS CA certificate item <#{ca_name}> in data "\
+            "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>",
+            1
+          )
+        else
+          ::Chef::Application.fatal!(
+            "Couldn't find TLS CA certificate item <#{ca_name}> in Vault service",
+            1
+          )
+        end
       else
-        RootCertificateEntry.new(@node, name, data)
+        RootCertificateEntry.new(@node, ca_name, data)
       end
     end
   end

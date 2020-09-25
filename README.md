@@ -1,7 +1,7 @@
 # tls-cookbook
 [![Chef cookbook](https://img.shields.io/cookbook/v/tls.svg?style=flat-square)]()
 [![license](https://img.shields.io/github/license/aspyatkin/tls-cookbook.svg?style=flat-square)]()  
-Chef cookbook to deploy SSL/TLS certificates (including root ones) on a system. Data is stored in the encrypted data bag which name is specified in the attribute `node['tls']['data_bag_name']` (by default `tls`). Data bag item name matches `node.chef_environment` value.
+Chef cookbook to deploy TLS certificates (including root ones) on a system. Data is stored in the encrypted data bag which name is specified in the attribute `node['tls']['data_bag_name']` (by default `tls`). Data bag item name matches `node.chef_environment` value.
 
 Certificate files will be placed under the directory specified in attribute `node['tls']['base_dir']` (by default `/etc/chef-tls`).
 
