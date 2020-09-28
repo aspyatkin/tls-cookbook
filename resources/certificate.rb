@@ -1,6 +1,7 @@
 require 'base64'
 
 resource_name :tls_certificate
+provides :tls_certificate
 
 property :domain, String, name_property: true
 property :owner, String, default: 'root'

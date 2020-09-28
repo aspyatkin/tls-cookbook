@@ -1,4 +1,5 @@
 resource_name :tls_ec_certificate
+provides :tls_ec_certificate
 
 property :domain, String, name_property: true
 property :owner, String, default: 'root'

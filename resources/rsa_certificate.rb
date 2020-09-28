@@ -1,4 +1,5 @@
 resource_name :tls_rsa_certificate
+provides :tls_rsa_certificate
 
 property :domain, String, name_property: true
 property :owner, String, default: 'root'

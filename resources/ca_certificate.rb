@@ -1,7 +1,7 @@
 resource_name :tls_ca_certificate
 provides :tls_ca_certificate
 
-property :name, String, name_property: true
+property :ca_name, String, name_property: true
 property :vlt_provider, Proc, default: lambda { nil }
 
 default_action :install
@@ -9,7 +9,7 @@ default_action :install
 action :install do
   helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_client_provider)
 
-  actual_item = helper.ca_certificate_entry(new_resource.name)
+  actual_item = helper.ca_certificate_entry(new_resource.ca_name)
 
   file actual_item.certificate_path do
     owner 'root'
@@ -34,7 +34,7 @@ end
 action :uninstall do
   helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_client_provider)
 
-  actual_item = helper.ca_certificate_entry new_resource.name
+  actual_item = helper.ca_certificate_entry new_resource.ca_name
 
   file actual_item.certificate_path do
     action :delete
