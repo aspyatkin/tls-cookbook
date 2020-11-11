@@ -9,11 +9,12 @@ property :group, String, default: node['root_group']
 property :key_type, [Symbol, nil], default: nil
 
 property :vlt_provider, Proc, default: lambda { nil }
+property :vlt_format, Integer, default: 1
 
 default_action :deploy
 
 action :deploy do
-  helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_provider)
+  helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_provider, vlt_format: new_resource.vlt_format)
 
   actual_item = helper.certificate_entry(new_resource.domain, new_resource.key_type)
 

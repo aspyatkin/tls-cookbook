@@ -38,7 +38,7 @@ Data is stored in the encrypted data bag which name is specified in the attribut
 }
 ```
 
-## Vault format
+## Vault format (version 1)
 
 Each certificate entry is supposed to be placed at path `<prefix>/certificate>/<entry_name>` and will be obtained by [vlt](https://supermarket.chef.io/cookbooks/vlt) client. A Chef node must claim a role with read and list permissions for `<prefix>/data/certificate/*` and `<prefix>/metadata/certificate` accordingly. The format is the following:
 
@@ -64,6 +64,54 @@ Each CA certificate entry is supposed to be placed at path `<prefix>/ca_certific
 }
 ```
 
+# Vault format (version 2)
+CA certificate entry format stays the same as of version 1.
+
+Each certificate entry is supposed to be placed at path `<prefix>/certificate>/<entry_name>` and will be obtained by [vlt](https://supermarket.chef.io/cookbooks/vlt) client. A Chef node must claim a role with read permissions for each `<prefix>/data/certificate/<entry_name>` or `<prefix>/data/certificate/*`. The format is the following:
+
+``` json
+{
+  "chain": [ // Certificate chain (from leaf to root, PEM encoded, new lines should be escaped)
+    "-----BEGIN CERTIFICATE-----\nMIIFNjCC........4PcGNXXA\n-----END CERTIFICATE-----",
+    "-----BEGIN CERTIFICATE-----\nMIIEkjCC........NFu0Qg==\n-----END CERTIFICATE-----"
+  ],
+  "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIB........8tt8JA==\n-----END RSA PRIVATE KEY-----" // Certificate private key (PEM encoded, new lines should be escaped)
+}
+```
+
+In comparison to version 1, there is no `domains` field. Instead, domain lists are placed into an index entry at `<prefix>/certificate/index` (a chef node must claim a role with read permissions for `<prefix>/data/certificate/index`), which has the following format:
+
+```json
+{
+  "rsa": {
+    "entry1_name": [
+      "domain1.tld",
+      "domain2.tld"
+    ],
+    "entry2_name": [
+      "domain3.tld",
+      "*.domain3.tld"
+    ]
+  },
+  "ecc": {
+    "entry1_name_ecc": [
+      "domain1.tld",
+      "domain2.tld"
+    ],
+    "entry2_name_ecc": [
+      "domain3.tld",
+      "*.domain3.tld"
+    ]
+  }
+}
+```
+
+The example above defines 4 certificate entries:
+- `<prefix>/certificate/entry1_name` (RSA for `domain1.tld` and `domain2.tld`)
+- `<prefix>/certificate/entry2_name` (RSA for `domain3.tld` and `*.domain3.tld`)
+- `<prefix>/certificate/entry1_name_ecc` (ECC for `domain1.tld` and `domain2.tld`)
+- `<prefix>/certificate/entry2_name_ecc` (ECC for `domain3.tld` and `*.domain3.tld`)
+
 ## Resources
 
 ### tls_certificate
@@ -76,6 +124,7 @@ tls_vlt_provider = lambda { tls_vlt }
 
 tls_certificate 'www.domain.tld' do
   vlt_provider tls_vlt_provider  # required only when Vault is used
+  vlt_format 2  # defaults to 1
   action :deploy
 end
 ```
@@ -83,7 +132,7 @@ end
 Different software (e.g. Nginx, Postfix) will require paths to deployed certificates and private keys. To obtain these paths, `::ChefCookbook::TLS` helper should be used. Below is the example:
 
 ``` ruby
-tls_item = ::ChefCookbook::TLS.new(node).certificate_entry('www.domain.tld', vlt_provider: tls_vlt_provider)  # vlt_provider is required only when Vault is used
+tls_item = ::ChefCookbook::TLS.new(node).certificate_entry('www.domain.tld', vlt_provider: tls_vlt_provider, vlt_format: 2)  # vlt_provider is required only when Vault is used, vlt_format defaults to 1
 
 tls_item.certificate_path  # Get path to the certificate
 tls_item.certificate_checksum  # Get certificate's CRC32

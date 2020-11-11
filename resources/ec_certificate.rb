@@ -6,6 +6,7 @@ property :owner, String, default: 'root'
 property :group, String, default: node['root_group']
 
 property :vlt_provider, Proc, default: lambda { nil }
+property :vlt_format, Integer, default: 1
 
 default_action :deploy
 
@@ -16,6 +17,7 @@ action :deploy do
     group new_resource.group
     key_type :ec
     vlt_provider new_resource.vlt_provider
+    vlt_format new_resource.vlt_format
     action :deploy
   end
 end

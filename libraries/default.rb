@@ -3,9 +3,10 @@ require 'zlib'
 
 module ChefCookbook
   class TLS
-    def initialize(node, vlt_provider: nil)
+    def initialize(node, vlt_provider: lambda { nil }, vlt_format: 1)
       @node = node
       @vlt_client = vlt_provider.call
+      @vlt_format = vlt_format
     end
 
     class CertificateEntry
@@ -105,7 +106,7 @@ module ChefCookbook
           else
             tls_data_bag_item.to_hash.fetch('certificates', [])
           end
-      else
+      elsif @vlt_format == 1
         names = @vlt_client.list('certificate')
         names.each do |_name|
           item = @vlt_client.read("certificate/#{_name}", raise_err: false)
@@ -118,42 +119,69 @@ module ChefCookbook
             }
           end
         end
+      elsif @vlt_format == 2
+        index_contents = @vlt_client.read('certificate/index')
+        if key_type == :rsa
+          entry_domain_map = index_contents[:rsa]
+        elsif key_type == :ec
+          entry_domain_map = index_contents[:ecc]
+        else
+          entry_domain_map = index_contents[:rsa] + index_contents[:ecc]
+        end
+        entry_domain_map.each do |_name, _domains|
+          tls_certificates_list << {
+            'name' => _name.to_s,
+            'domains' => _domains
+          }
+        end
       end
 
-      tls_certificates_list.find do |item|
-        match_domain = _subset?(domains, item.fetch('domains', []))
+      if @vlt_client.nil? || @vlt_format == 1
+        tls_certificates_list.find do |item|
+          match_domain = _subset?(domains, item.fetch('domains', []))
 
-        if match_domain
-          if key_type.nil?
-            next true
-          else
-            begin
-              pk = ::OpenSSL::PKey.read(item.fetch('private_key', ''))
-              if key_type == :rsa && pk.class == ::OpenSSL::PKey::RSA
-                next true
-              elsif key_type == :ec && pk.class == ::OpenSSL::PKey::EC
-                next true
-              else
-                next false
-              end
-            rescue ::OpenSSL::PKey::PKeyError
-              if @vlt_client.nil?
-                ::Chef::Application.fatal!(
-                  "Couldn't find valid private key in certificate item for domains <#{domains.join(' ')}> in data "\
-                  "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>",
-                  1
-                )
-              else
-                ::Chef::Application.fatal!(
-                  "Couldn't find valid private key for domains <#{domains.join(' ')}> in Vault service",
-                  1
-                )
+          if match_domain
+            if key_type.nil?
+              next true
+            else
+              begin
+                pk = ::OpenSSL::PKey.read(item.fetch('private_key', ''))
+                if key_type == :rsa && pk.class == ::OpenSSL::PKey::RSA
+                  next true
+                elsif key_type == :ec && pk.class == ::OpenSSL::PKey::EC
+                  next true
+                else
+                  next false
+                end
+              rescue ::OpenSSL::PKey::PKeyError
+                if @vlt_client.nil?
+                  ::Chef::Application.fatal!(
+                    "Couldn't find valid private key in certificate item for domains <#{domains.join(' ')}> in data "\
+                    "bag <#{@node['tls']['data_bag_name']}::#{@node.chef_environment}>",
+                    1
+                  )
+                else
+                  ::Chef::Application.fatal!(
+                    "Couldn't find valid private key for domains <#{domains.join(' ')}> in Vault service",
+                    1
+                  )
+                end
               end
             end
+          else
+            next false
           end
-        else
-          next false
         end
+      elsif !@vlt_client.nil? && @vlt_format == 2
+        r = tls_certificates_list.find { |item| _subset?(domains, item.fetch('domains', [])) }
+
+        unless r.nil?
+          extra_data = @vlt_client.read("certificate/#{r['name']}")
+          r['chain'] = extra_data[:chain]
+          r['private_key'] = extra_data[:private_key]
+        end
+
+        r
       end
     end
 
