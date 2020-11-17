@@ -7,7 +7,7 @@ property :vlt_provider, Proc, default: lambda { nil }
 default_action :install
 
 action :install do
-  helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_client_provider)
+  helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_provider)
 
   actual_item = helper.ca_certificate_entry(new_resource.ca_name)
 
@@ -32,7 +32,7 @@ action :install do
 end
 
 action :uninstall do
-  helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_client_provider)
+  helper = ::ChefCookbook::TLS.new(node, vlt_provider: new_resource.vlt_provider)
 
   actual_item = helper.ca_certificate_entry new_resource.ca_name
 

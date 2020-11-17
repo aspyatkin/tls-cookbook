@@ -87,6 +87,10 @@ module ChefCookbook
       a.all? { |x| b.include?(x) || (!_wildcard?(x) && b.include?(_wilcardize(x))) }
     end
 
+    def _strict_subset?(a, b)
+      a.all? { |x| b.include?(x) }
+    end
+
     def _find_certificate_entry(domains, key_type)
       tls_certificates_list = []
 
@@ -173,9 +177,10 @@ module ChefCookbook
           end
         end
       elsif !@vlt_client.nil? && @vlt_format == 2
-        r = tls_certificates_list.find { |item| _subset?(domains, item.fetch('domains', [])) }
+        r = tls_certificates_list.find_all { |item| _subset?(domains, item.fetch('domains', [])) }
 
         unless r.nil?
+          r = r.sort_by { |item| _strict_subset?(domains, item.fetch('domains', [])) ? 0 : 1 }[0]
           extra_data = @vlt_client.read("certificate/#{r['name']}")
           r['chain'] = extra_data[:chain]
           r['private_key'] = extra_data[:private_key]
