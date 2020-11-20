@@ -179,7 +179,9 @@ module ChefCookbook
       elsif !@vlt_client.nil? && @vlt_format == 2
         r = tls_certificates_list.find_all { |item| _subset?(domains, item.fetch('domains', [])) }
 
-        unless r.nil?
+        if r.empty?
+          r = nil
+        else
           r = r.sort_by { |item| _strict_subset?(domains, item.fetch('domains', [])) ? 0 : 1 }[0]
           extra_data = @vlt_client.read("certificate/#{r['name']}")
           r['chain'] = extra_data[:chain]
